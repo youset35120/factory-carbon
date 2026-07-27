@@ -25,21 +25,26 @@ export default function Home() {
 
   const [result, setResult] = useState<{ total: number; scope1: number; scope2: number; scope3: number } | null>(null);
 
-  // ตรวจสอบสถานะ Login และดึงข้อมูลมาแสดง
   useEffect(() => {
     async function fetchData() {
-      const res = await fetch("/api/auth/me"); // เราจะสร้าง API นี้ในขั้นตอนถัดไป
-      if (res.ok) {
-        const data = await res.json();
-        setFactoryName(data.factoryName);
-        setFormData((prev) => ({ ...prev, factoryName: data.factoryName }));
-      } else {
-        router.push("/login"); // ไม่ได้ Login ให้ไปหน้า Login
-      }
+      try {
+        const res = await fetch("/api/auth/me");
+        if (res.ok) {
+          const data = await res.json();
+          setFactoryName(data.factoryName);
+          setFormData((prev) => ({ ...prev, factoryName: data.factoryName }));
+        } else {
+          router.push("/login"); // ไม่ได้ Login ให้ไปหน้า Login
+          return; // หยุดทำงานถ้าไม่ได้ Login
+        }
 
-      const reportRes = await fetch("/api/reports");
-      if (reportRes.ok) {
-        setReports(await reportRes.json());
+        const reportRes = await fetch("/api/reports");
+        if (reportRes.ok) {
+          setReports(await reportRes.json());
+        }
+      } catch (error) {
+        console.error("FETCH DATA ERROR:", error);
+        router.push("/login");
       }
     }
     fetchData();
@@ -65,14 +70,12 @@ export default function Home() {
     const calculation = calculateCarbonFootprint(formData as any);
     setResult(calculation);
 
-    // บันทึกลง Database
     await fetch("/api/reports", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...formData, totalCO2: calculation.total }),
     });
 
-    // อัปเดตประวัติ
     const reportRes = await fetch("/api/reports");
     if (reportRes.ok) setReports(await reportRes.json());
   };
@@ -114,9 +117,14 @@ export default function Home() {
             <h1 className="text-2xl font-bold text-gray-800">Carbon Footprint Calculator</h1>
             <p className="text-gray-500 text-sm">ยินดีต้อนรับ, <span className="font-semibold">{factoryName}</span></p>
           </div>
-          <button onClick={handleLogout} className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 text-sm">
-            ออกจากระบบ
-          </button>
+          <div className="flex gap-2">
+            <a href="/dashboard" className="bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-900 text-sm">
+              ดู Dashboard
+            </a>
+            <button onClick={handleLogout} className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 text-sm">
+              ออกจากระบบ
+            </button>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8 mb-8">
@@ -180,7 +188,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* ส่วนแสดงประวัติ */}
         {reports.length > 0 && (
           <div className="mt-12">
             <h2 className="text-xl font-bold text-gray-800 mb-4">ประวัติการบันทึก</h2>

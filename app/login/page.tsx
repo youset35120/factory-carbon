@@ -19,32 +19,36 @@ export default function LoginPage() {
     setError("");
 
     try {
-      if (isLogin) {
-        // ส่งข้อมูลไป Login API
-        const res = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
+      const endpoint = isLogin ? "/api/auth/login" : "/api/auth/register";
+      const payload = isLogin 
+        ? { email, password } 
+        : { email, password, factoryName };
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      // เพิ่มส่วนนี้เพื่อดัก Error ที่ชัดเจนขึ้น
+      const text = await res.text(); // อ่านค่ากลับมาเป็น Text ก่อน
+      try {
+        const data = JSON.parse(text); // ลองแปลงเป็น JSON
+        if (!res.ok) throw new Error(data.error || "เกิดข้อผิดพลาด");
         
-        router.push("/"); // กลับหน้าหลัก
-        router.refresh(); // รีเฟรชสถานะ Login
-      } else {
-        // ส่งข้อมูลไป Register API
-        const res = await fetch("/api/auth/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password, factoryName }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
-        
-        // สมัครสำเร็จ สลับไปหน้า Login ให้ล็อกอินเลย
-        setIsLogin(true);
-        setError("สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ");
+        if (isLogin) {
+          router.push("/");
+          router.refresh();
+        } else {
+          setIsLogin(true);
+          setError("สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ");
+        }
+      } catch (parseError) {
+        // ถ้าแปลงเป็น JSON ไม่ได้ (แปลว่าได้ HTML กลับมา)
+        console.error("API Response (ไม่ใช่ JSON):", text);
+        throw new Error("ระบบมีปัญหา (ได้รับ HTML แทน JSON) โปรดเช็ค Terminal");
       }
+
     } catch (err: any) {
       setError(err.message);
     } finally {

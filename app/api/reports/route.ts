@@ -34,11 +34,21 @@ export async function GET() {
   }
 }
 
-// บันทึกข้อมูลใหม่ (ให้เฉพาะ USER หรือ ADMIN บันทึกของตัวเองได้)
+// บันทึกข้อมูลใหม่
 export async function POST(req: Request) {
   try {
     const user = await getCurrentUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    // ===== ระบบจำกัดสิทธิ์ (Quota Limit) =====
+    if (user.plan === 'FREE') {
+      const reportCount = await prisma.report.count({ where: { userId: user.id } })
+      if (reportCount >= 3) {
+        return NextResponse.json({ 
+          error: 'คุณใช้งานครบโควต้าแพ็กเกจฟรีแล้ว (3 รายงาน) กรุณาอัปเกรดเป็น Pro เพื่อบันทึกข้อมูลเพิ่ม' 
+        }, { status: 403 }) // 403 Forbidden
+      }
+    }
 
     const data = await req.json()
 

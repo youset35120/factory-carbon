@@ -8,7 +8,7 @@ export default function LandingPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
-    // เช็คว่า Login แล้วหรือยัง ถ้า Login แล้วให้เปลี่ยนปุ่มเป็น "เข้าสู่ระบบ"
+    // เช็คเฉยๆ ว่าล็อกอินแล้วหรือยัง (ไม่ได้บังคับเปลี่ยนเส้นทาง)
     fetch("/api/auth/me").then(res => {
       if (res.ok) setIsLoggedIn(true);
     }).catch(() => {});
@@ -96,7 +96,7 @@ export default function LandingPage() {
               <h3 className="text-xl font-bold text-gray-800">Basic</h3>
               <p className="text-gray-500 text-sm mt-1">สำหรับโรงงานขนาดเล็กที่เริ่มต้น</p>
               <div className="my-6">
-                <span className="text-4xl font-extrabold text-gray-900">990</span>
+                <span className="text-4xl font-extrabold text-gray-900">0</span>
                 <span className="text-gray-500"> บาท/เดือน</span>
               </div>
               <ul className="space-y-3 mb-8 text-gray-600 flex-1">
@@ -161,9 +161,9 @@ export default function LandingPage() {
           <div className="text-2xl font-bold text-white mb-2">Carbon<span className="text-blue-500">Tax</span></div>
           <p className="text-sm mb-6">ระบบบริหารจัดการคาร์บอนฟุตพริ้นต์สำหรับอุตสาหกรรม 4.0</p>
           <div className="flex justify-center gap-6 text-sm">
-            <a href="#" className="hover:text-white">นโยบายความเป็นส่วนตัว</a>
-            <a href="#" className="hover:text-white">ข้อกำหนดการใช้งาน</a>
-            <a href="#" className="hover:text-white">ติดต่อเรา</a>
+            <a href="/privacy" className="hover:text-white">นโยบายความเป็นส่วนตัว</a>
+            <a href="/terms" className="hover:text-white">ข้อกำหนดการใช้งาน</a>
+            <a href="mailto:sales@yourcompany.com" className="hover:text-white">ติดต่อเรา</a>
           </div>
           <div className="mt-8 text-xs text-gray-500">© 2024 CarbonTax System. All rights reserved.</div>
         </div>

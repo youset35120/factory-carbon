@@ -1,4 +1,4 @@
-// app/page.tsx
+// app/calculator/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -11,10 +11,12 @@ export default function Home() {
   
   const [factoryName, setFactoryName] = useState("");
   const [role, setRole] = useState("USER");
+  const [plan, setPlan] = useState("FREE");
   const [reports, setReports] = useState<any[]>([]);
   const [isEditingFactory, setIsEditingFactory] = useState(false);
   const [monthlyTarget, setMonthlyTarget] = useState<number>(0);
-  const [showNotifs, setShowNotifs] = useState(false); // <--- State เปิด/ปิดเมนูแจ้งเตือน
+  const [showNotifs, setShowNotifs] = useState(false); 
+  const [quotaError, setQuotaError] = useState("");
 
   const [formData, setFormData] = useState<Record<string, string | number>>({
     factoryName: "",
@@ -41,6 +43,7 @@ export default function Home() {
           const data = await res.json();
           setFactoryName(data.factoryName);
           setRole(data.role);
+          setPlan(data.plan || "FREE");
           setMonthlyTarget(data.monthlyTarget || 0);
           setFormData((prev) => ({ ...prev, factoryName: data.factoryName, logo: data.logo || "" }));
         } else {
@@ -70,18 +73,39 @@ export default function Home() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setQuotaError("");
     const { calculateCarbonFootprint } = await import("@/lib/reportGenerator");
     const calculation = calculateCarbonFootprint(formData as any);
     setResult(calculation);
 
-    await fetch("/api/reports", {
+    const res = await fetch("/api/reports", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...formData, totalCO2: calculation.total }),
     });
 
-    const reportRes = await fetch("/api/reports");
-    if (reportRes.ok) setReports(await reportRes.json());
+    if (!res.ok) {
+      const data = await res.json();
+      if (res.status === 403) {
+        setQuotaError(data.error);
+      }
+    } else {
+      const reportRes = await fetch("/api/reports");
+      if (reportRes.ok) setReports(await reportRes.json());
+    }
+  };
+
+  const handleUpgrade = async () => {
+    const res = await fetch("/api/auth/update", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ plan: "PRO" }),
+    });
+    if (res.ok) {
+      setPlan("PRO");
+      setQuotaError("");
+      alert("อัปเกรดเป็น Pro สำเร็จ! (ทดสอบระบบ)");
+    }
   };
 
   const handleDownloadReport = async (mode: 'monthly' | 'annual') => {
@@ -95,15 +119,12 @@ export default function Home() {
       const year = (formData.month as string).split('-')[0];
       reportsForPdf = reports.filter((r: any) => r.month.startsWith(year));
       reportsForPdf.sort((a: any, b: any) => (a.month > b.month ? 1 : -1));
-      
       if (reportsForPdf.length > 0 && reportsForPdf.every((r: any) => r.status === 'APPROVED')) {
         currentStatus = 'APPROVED';
       }
     } else {
       const foundReport = reports.find((r: any) => r.month === formData.month);
-      if (foundReport) {
-        currentStatus = foundReport.status;
-      }
+      if (foundReport) currentStatus = foundReport.status;
     }
 
     generatePDFReport(formData as any, calculation, mode, reportsForPdf, currentStatus);
@@ -199,34 +220,39 @@ export default function Home() {
 
   if (!factoryName) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
 
-  // ===== ตรรกะการแจ้งเตือน =====
-  // Admin จะเห็นรายการที่ PENDING, User จะเห็นรายการที่ APPROVED หรือ REJECTED
   const notifications = role === 'ADMIN' 
     ? reports.filter(r => r.status === 'PENDING').slice(0, 5)
     : reports.filter(r => r.status === 'APPROVED' || r.status === 'REJECTED').slice(0, 5);
+
+  const isQuotaFull = plan === 'FREE' && reports.length >= 3;
 
   return (
     <main className="min-h-screen bg-gray-50 p-8 font-sans">
       <div className="max-w-6xl mx-auto bg-white p-8 rounded-xl shadow-lg border border-gray-100">
         
-        {/* แถบบนสุด */}
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">{role === 'ADMIN' ? t('admin_dashboard') : t('calculator_title')}</h1>
-            <p className="text-gray-500 text-sm">{t('welcome')}, <span className="font-semibold">{factoryName}</span> {role === 'ADMIN' && <span className="ml-2 bg-red-100 text-red-600 text-xs font-bold px-2 py-1 rounded">ADMIN</span>}</p>
+            <p className="text-gray-500 text-sm flex items-center gap-2">
+              {t('welcome')}, <span className="font-semibold">{factoryName}</span> 
+              {role === 'ADMIN' && <span className="ml-2 bg-red-100 text-red-600 text-xs font-bold px-2 py-1 rounded">ADMIN</span>}
+              <span className={`ml-2 text-xs font-bold px-2 py-1 rounded ${plan === 'PRO' ? 'bg-purple-100 text-purple-600' : 'bg-gray-200 text-gray-600'}`}>
+                {plan === 'PRO' ? 'PRO Plan' : 'FREE Plan'}
+              </span>
+            </p>
           </div>
           
           <div className="flex gap-2 items-center relative">
-            {/* ปุ่มสลับภาษา */}
+            {/* เปลี่ยนเป็น <a> tag เพื่อบังคับโหลดหน้าใหม่ */}
+            <a href="/" className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 text-sm font-semibold hidden md:inline-block">หน้าแรก</a>
+            
             <button onClick={() => setLang('th')} className={`px-3 py-2 rounded-lg text-sm font-semibold ${lang === 'th' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}>TH</button>
             <button onClick={() => setLang('en')} className={`px-3 py-2 rounded-lg text-sm font-semibold ${lang === 'en' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}>EN</button>
             
-            {/* ===== ไอคอนระฆังแจ้งเตือน ===== */}
             <button onClick={() => setShowNotifs(!showNotifs)} className="relative p-2 rounded-full hover:bg-gray-100">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
-              {/* จุดสีแดงแจ้งเตือน */}
               {notifications.length > 0 && (
                 <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
                   {notifications.length}
@@ -234,7 +260,6 @@ export default function Home() {
               )}
             </button>
 
-            {/* กล่อง Dropdown แสดงรายการแจ้งเตือน */}
             {showNotifs && (
               <div className="absolute top-12 right-0 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-50 overflow-hidden">
                 <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
@@ -263,7 +288,6 @@ export default function Home() {
                 </div>
               </div>
             )}
-            {/* ================================ */}
 
             {role === 'ADMIN' && (
               <a href="/admin" className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 text-sm font-semibold hidden md:inline-block">Admin Overview</a>
@@ -273,9 +297,24 @@ export default function Home() {
           </div>
         </div>
 
-        {role === 'USER' && (
+        {isQuotaFull && (
+          <div className="mb-8 p-6 bg-purple-50 border-2 border-purple-300 rounded-xl text-center">
+            <h2 className="text-xl font-bold text-purple-800 mb-2">🚀 คุณใช้งานครบโควต้าแพ็กเกจ FREE แล้ว!</h2>
+            <p className="text-gray-600 mb-4">แพ็กเกจฟรีสามารถบันทึกข้อมูลได้สูงสุด 3 เดือน อัปเกรดเป็น PRO เพื่อบันทึกข้อมูลได้ไม่จำกัดและปลดล็อกฟีเจอร์ทั้งหมด</p>
+            <button onClick={handleUpgrade} className="bg-purple-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-purple-700 transition-colors inline-flex items-center gap-2">
+              อัปเกรดเป็น PRO (ทดสอบระบบ)
+            </button>
+          </div>
+        )}
+
+        {quotaError && (
+          <div className="mb-8 p-4 bg-red-50 border border-red-200 rounded-xl text-center text-red-600 font-semibold">
+            {quotaError}
+          </div>
+        )}
+
+        {role === 'USER' && !isQuotaFull && (
           <>
-            {/* กล่องตั้งค่าเป้าหมาย */}
             <div className="mb-8 p-6 bg-yellow-50 border border-yellow-200 rounded-xl flex flex-col md:flex-row items-center gap-4">
               <div className="flex-1 w-full">
                 <label className="block text-sm font-bold text-yellow-800 mb-1">{t('target_title')}</label>
@@ -340,7 +379,7 @@ export default function Home() {
           </>
         )}
 
-        {result && role === 'USER' && (
+        {result && role === 'USER' && !isQuotaFull && (
           <div className="mt-8 bg-green-50 border border-green-200 p-8 rounded-xl text-center">
             <h2 className="text-xl font-semibold text-green-800 mb-4">{t('monthly_result')}</h2>
             <div className="grid grid-cols-3 gap-4 mb-6 text-center">

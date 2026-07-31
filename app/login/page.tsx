@@ -3,10 +3,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [isLogin, setIsLogin] = useState(true); // true: หน้า Login, false: หน้า Register
+  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [factoryName, setFactoryName] = useState("");
@@ -56,7 +57,18 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans">
+    <main className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4 font-sans">
+      
+      {/* ปรับปุ่มกลับหน้าหลักให้เด่นชัดขึ้น และใช้ <a> tag เพื่อบังคับโหลดหน้าใหม่ */}
+      <div className="w-full max-w-md flex justify-start mb-4">
+        <a href="/" className="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 hover:bg-blue-200 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+          </svg>
+          กลับหน้าหลัก
+        </a>
+      </div>
+
       <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-lg border border-gray-100">
         <h1 className="text-2xl font-bold text-gray-800 text-center mb-6">
           {isLogin ? "เข้าสู่ระบบ (Login)" : "สมัครสมาชิก (Register)"}
@@ -126,9 +138,8 @@ export default function LoginPage() {
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-black"
               placeholder="********"
             />
-            {/* เพิ่มลิงก์ลืมรหัสผ่านตรงนี้ */}
             <div className="text-right mt-2">
-              <a href="/forgot-password" className="text-sm text-blue-600 hover:underline">ลืมรหัสผ่าน?</a>
+              <Link href="/forgot-password" className="text-sm text-blue-600 hover:underline">ลืมรหัสผ่าน?</Link>
             </div>
           </div>
 

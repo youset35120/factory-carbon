@@ -15,9 +15,9 @@ model User {
   logo             String?  @db.Text
   role             String   @default("USER")
   monthlyTarget    Float?   @default(0)
+  plan          String   @default("FREE")
   createdAt        DateTime @default(now())
   reports          Report[]
-  
   resetToken       String?
   resetTokenExpiry DateTime?
 }

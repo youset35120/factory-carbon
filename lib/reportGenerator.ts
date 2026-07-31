@@ -23,10 +23,9 @@ export interface CarbonFootprintResult {
   scope2: number;
   scope3: number;
   total: number;
-  carbonTax: number; // เพิ่มการคำนวณภาษี
+  carbonTax: number;
 }
 
-// อัตราภาษีคาร์บอน: 200 บาทต่อ 1 ตัน (1,000 kg) = 0.2 บาทต่อ 1 kgCO2e
 const CARBON_TAX_RATE = 0.20;
 
 export function calculateCarbonFootprint(data: FactoryData): CarbonFootprintResult {
@@ -46,22 +45,23 @@ export function calculateCarbonFootprint(data: FactoryData): CarbonFootprintResu
     (Number(data.transport) * EMISSION_FACTORS.transport);
   
   const total = scope1 + scope2 + scope3;
-  const carbonTax = total * CARBON_TAX_RATE; // คำนวณภาษี
+  const carbonTax = total * CARBON_TAX_RATE;
 
   return { scope1, scope2, scope3, total, carbonTax };
 }
 
+// เพิ่มพารามิเตอร์ status เข้ามา
 export function generatePDFReport(
   data: FactoryData, 
   result: CarbonFootprintResult, 
   mode: 'monthly' | 'annual' = 'monthly',
-  allReports: any[] = []
+  allReports: any[] = [],
+  status: string = 'PENDING' // <--- เพิ่มตรงนี้
 ) {
   const doc = new jsPDF();
   const num = (val: any) => Number(val) || 0;
   const year = data.month ? data.month.split('-')[0] : new Date().getFullYear();
   
-  // ส่วนหัว
   doc.setFontSize(18);
   doc.setFont("helvetica", "bold");
   const title = mode === 'annual' ? `Annual Carbon Footprint & Tax Report (${year})` : "Carbon Footprint & Tax Assessment Report";
@@ -71,7 +71,6 @@ export function generatePDFReport(
   doc.setFont("helvetica", "normal");
   doc.text("Based on ISO 14064-1, GHG Protocol Standards", 105, 27, { align: "center" });
 
-  // เพิ่มโลโก้ (ถ้ามี)
   if (data.logo) {
     try {
       doc.addImage(data.logo, 'PNG', 14, 10, 30, 15);
@@ -80,7 +79,20 @@ export function generatePDFReport(
     }
   }
 
-  // ข้อมูลโรงงาน
+  // แสดงสถานะที่มุมขวาบน
+  doc.setFontSize(12);
+  if (status === 'APPROVED') {
+    doc.setTextColor(22, 160, 133); // สีเขียว
+    doc.text("Status: VERIFIED", 196, 20, { align: "right" });
+  } else if (status === 'REJECTED') {
+    doc.setTextColor(231, 76, 60); // สีแดง
+    doc.text("Status: REJECTED", 196, 20, { align: "right" });
+  } else {
+    doc.setTextColor(241, 196, 15); // สีเหลือง
+    doc.text("Status: PENDING", 196, 20, { align: "right" });
+  }
+  doc.setTextColor(0, 0, 0); // รีสตาร์ทสีดำ
+
   doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
   doc.text("Factory Information", 14, 40);
@@ -90,7 +102,6 @@ export function generatePDFReport(
   doc.text(mode === 'annual' ? `Reporting Year: ${year}` : `Reporting Period: ${data.month}`, 14, 54);
 
   if (mode === 'annual') {
-    // ============ โหมดรายงานปี ============
     if (allReports.length === 0) {
       doc.text("No data available for this year.", 14, 62);
     } else {
@@ -100,22 +111,21 @@ export function generatePDFReport(
       const maxReport = allReports.reduce((max, r) => num(r.totalCO2) > num(max.totalCO2) ? r : max, allReports[0]);
       const minReport = allReports.reduce((min, r) => num(r.totalCO2) < num(min.totalCO2) ? r : min, allReports[0]);
 
-      // ตารางสรุปรายเดือน
       autoTable(doc, {
         startY: 62,
-        head: [["Month", "Emissions (kgCO2e)", "Est. Carbon Tax (THB)"]],
+        head: [["Month", "Emissions (kgCO2e)", "Est. Carbon Tax (THB)", "Status"]], // เพิ่มคอลัมน์ Status
         body: allReports.map(r => [
           r.month, 
           num(r.totalCO2).toFixed(2), 
-          (num(r.totalCO2) * CARBON_TAX_RATE).toFixed(2)
+          (num(r.totalCO2) * CARBON_TAX_RATE).toFixed(2),
+          r.status || 'PENDING' // เพิ่มสถานะในตาราง
         ]),
         theme: "striped",
         headStyles: { fillColor: [22, 160, 133] },
-        foot: [["Total", totalAnnualCO2.toFixed(2), annualTax.toFixed(2)]],
+        foot: [["Total", totalAnnualCO2.toFixed(2), annualTax.toFixed(2), ""]],
         footStyles: { fillColor: [44, 62, 80], textColor: 255, fontStyle: "bold" }
       });
 
-      // ข้อความสรุปผล
       let currentY = (doc as any).lastAutoTable.finalY + 15;
       doc.setFontSize(11);
       doc.setFont("helvetica", "bold");
@@ -128,7 +138,6 @@ export function generatePDFReport(
       doc.text(`- Highest Emission Month: ${maxReport.month} (${num(maxReport.totalCO2).toFixed(2)} kgCO2e)`, 14, currentY); currentY += 6;
       doc.text(`- Lowest Emission Month: ${minReport.month} (${num(minReport.totalCO2).toFixed(2)} kgCO2e)`, 14, currentY);
 
-      // หน้ากราฟแท่ง
       doc.addPage();
       doc.setFontSize(16);
       doc.setFont("helvetica", "bold");
@@ -153,7 +162,6 @@ export function generatePDFReport(
       });
     }
   } else {
-    // ============ โหมดรายงานรายเดือน ============
     autoTable(doc, {
       startY: 62,
       head: [["Activity Data", "Unit", "Quantity"]],
@@ -172,7 +180,6 @@ export function generatePDFReport(
       headStyles: { fillColor: [22, 160, 133] }
     });
 
-    // ตารางสรุปผลพร้อมค่าภาษี
     autoTable(doc, {
       startY: (doc as any).lastAutoTable.finalY + 10,
       head: [["Description", "Amount"]],
@@ -187,11 +194,25 @@ export function generatePDFReport(
       theme: "grid",
       headStyles: { fillColor: [41, 128, 185] },
       foot: [["Total Tax Estimation", `${num(result.carbonTax).toFixed(2)} THB`]],
-      footStyles: { fillColor: [231, 76, 60], textColor: 255, fontStyle: "bold" } // สีแดงสำหรับภาษี
+      footStyles: { fillColor: [231, 76, 60], textColor: 255, fontStyle: "bold" }
     });
   }
 
-  // ส่วนท้ายกระดาษ
+  // ============ ส่วนของลายน้ำ (Watermark) ============
+  if (status === 'APPROVED') {
+    doc.setGState(new (doc as any).GState({ opacity: 0.2 })); // ทำให้โปร่งใส
+    doc.setTextColor(22, 160, 133); // สีเขียวมรกต
+    doc.setFontSize(80);
+    doc.setFont("helvetica", "bold");
+    // วาดกลางหน้ากระดาษแบบเอียง 45 องศา
+    doc.text("VERIFIED", 105, 150, { align: "center", angle: 45 });
+    
+    // รีเซ็ตค่ากลับเพื่อไม่ให้ส่งผลกระทบต่อข้อความอื่นๆ
+    doc.setGState(new (doc as any).GState({ opacity: 1 }));
+    doc.setTextColor(0, 0, 0);
+  }
+  // ==========================================
+
   const finalY = mode === 'annual' ? 270 : (doc as any).lastAutoTable.finalY + 20;
   doc.text("Report Generated Date: " + new Date().toLocaleDateString(), 14, finalY);
   doc.text("Authorized Signature: ______________________", 14, finalY + 15);

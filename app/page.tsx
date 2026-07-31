@@ -83,18 +83,32 @@ export default function Home() {
     if (reportRes.ok) setReports(await reportRes.json());
   };
 
-  const handleDownloadReport = async (mode: 'monthly' | 'annual') => {
+    const handleDownloadReport = async (mode: 'monthly' | 'annual') => {
     const { calculateCarbonFootprint, generatePDFReport } = await import("@/lib/reportGenerator");
     const calculation = calculateCarbonFootprint(formData as any);
     
     let reportsForPdf = reports;
+    let currentStatus = 'PENDING'; // ค่าเริ่มต้น
+
     if (mode === 'annual' && formData.month) {
       const year = (formData.month as string).split('-')[0];
       reportsForPdf = reports.filter((r: any) => r.month.startsWith(year));
       reportsForPdf.sort((a: any, b: any) => (a.month > b.month ? 1 : -1));
+      
+      // ตรวจสอบว่ารายงานปีนี้ทั้งหมดถูกอนุมัติแล้วหรือไม่
+      if (reportsForPdf.length > 0 && reportsForPdf.every((r: any) => r.status === 'APPROVED')) {
+        currentStatus = 'APPROVED';
+      }
+    } else {
+      // หาสถานะของเดือนปัจจุบันที่กำลังจะโหลด PDF
+      const foundReport = reports.find((r: any) => r.month === formData.month);
+      if (foundReport) {
+        currentStatus = foundReport.status;
+      }
     }
 
-    generatePDFReport(formData as any, calculation, mode, reportsForPdf);
+    // ส่งค่า currentStatus ไปที่ฟังก์ชันสร้าง PDF
+    generatePDFReport(formData as any, calculation, mode, reportsForPdf, currentStatus);
   };
 
   const handleDelete = async (id: string) => {

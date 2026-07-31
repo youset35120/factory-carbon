@@ -37,7 +37,7 @@ export default function LoginPage() {
         if (!res.ok) throw new Error(data.error || "เกิดข้อผิดพลาด");
         
         if (isLogin) {
-          router.push("/calculator"); // <--- แก้ไขบรรทัดนี้จาก / เป็น /calculator
+          router.push("/calculator");
           router.refresh();
         } else {
           setIsLogin(true);
@@ -126,6 +126,10 @@ export default function LoginPage() {
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-black"
               placeholder="********"
             />
+            {/* เพิ่มลิงก์ลืมรหัสผ่านตรงนี้ */}
+            <div className="text-right mt-2">
+              <a href="/forgot-password" className="text-sm text-blue-600 hover:underline">ลืมรหัสผ่าน?</a>
+            </div>
           </div>
 
           <button

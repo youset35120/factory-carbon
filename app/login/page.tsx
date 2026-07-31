@@ -10,7 +10,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [factoryName, setFactoryName] = useState("");
-  const [logo, setLogo] = useState<string | null>(null); // <--- เพิ่มตัวแปรเก็บโลโก้
+  const [logo, setLogo] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -21,7 +21,6 @@ export default function LoginPage() {
 
     try {
       const endpoint = isLogin ? "/api/auth/login" : "/api/auth/register";
-      // เพิ่ม logo เข้าไปใน payload ตอนสมัครสมาชิก
       const payload = isLogin 
         ? { email, password } 
         : { email, password, factoryName, logo };
@@ -32,21 +31,19 @@ export default function LoginPage() {
         body: JSON.stringify(payload),
       });
 
-      // เพิ่มส่วนนี้เพื่อดัก Error ที่ชัดเจนขึ้น
-      const text = await res.text(); // อ่านค่ากลับมาเป็น Text ก่อน
+      const text = await res.text();
       try {
-        const data = JSON.parse(text); // ลองแปลงเป็น JSON
+        const data = JSON.parse(text);
         if (!res.ok) throw new Error(data.error || "เกิดข้อผิดพลาด");
         
         if (isLogin) {
-          router.push("/");
+          router.push("/calculator"); // <--- แก้ไขบรรทัดนี้จาก / เป็น /calculator
           router.refresh();
         } else {
           setIsLogin(true);
           setError("สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ");
         }
       } catch (parseError) {
-        // ถ้าแปลงเป็น JSON ไม่ได้ (แปลว่าได้ HTML กลับมา)
         console.error("API Response (ไม่ใช่ JSON):", text);
         throw new Error("ระบบมีปัญหา (ได้รับ HTML แทน JSON) โปรดเช็ค Terminal");
       }
@@ -86,7 +83,6 @@ export default function LoginPage() {
                 />
               </div>
               
-              {/* ส่วนอัปโหลดโลโก้ */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">โลโก้บริษัท (Logo) - ไม่ใส่ก็ได้</label>
                 <input
@@ -97,7 +93,7 @@ export default function LoginPage() {
                     if (file) {
                       const reader = new FileReader();
                       reader.onloadend = () => {
-                        setLogo(reader.result as string); // แปลงรูปเป็น Base64
+                        setLogo(reader.result as string);
                       };
                       reader.readAsDataURL(file);
                     }

@@ -10,7 +10,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [target, setTarget] = useState<number>(0); // <--- เพิ่ม State เก็บเป้าหมาย
+  const [target, setTarget] = useState<number>(0);
   
   const [year1, setYear1] = useState<string>("");
   const [year2, setYear2] = useState<string>("");
@@ -24,17 +24,20 @@ export default function DashboardPage() {
           return;
         }
         
-        // ดึงค่าเป้าหมายมาแสดงในกราฟ
         const meData = await meRes.json();
         setTarget(meData.monthlyTarget || 0);
 
         const reportRes = await fetch("/api/reports");
         if (reportRes.ok) {
           const data: any[] = await reportRes.json();
-          data.sort((a: any, b: any) => (a.month > b.month ? 1 : -1));
-          setReports(data);
           
-          const years: string[] = [...new Set(data.map((r: any) => r.month.split('-')[0]))].sort();
+          // ===== กรองเอาเฉพาะข้อมูลที่มีสถานะ APPROVED เท่านั้นมาแสดงใน Dashboard =====
+          const approvedReports = data.filter((r: any) => r.status === 'APPROVED');
+          
+          approvedReports.sort((a: any, b: any) => (a.month > b.month ? 1 : -1));
+          setReports(approvedReports);
+          
+          const years: string[] = [...new Set(approvedReports.map((r: any) => r.month.split('-')[0]))].sort();
           if (years.length > 0) setYear1(years[years.length - 1] as string);
           if (years.length > 1) setYear2(years[years.length - 2] as string);
         }
@@ -82,7 +85,10 @@ export default function DashboardPage() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Dashboard สรุปผล Carbon Footprint</h1>
-            <p className="text-gray-500 text-sm">ภาพรวมการปล่อยก๊าซเรือกระจกและการเปรียบเทียบรายปี</p>
+            <p className="text-gray-500 text-sm flex items-center gap-2">
+              ภาพรวมการปล่อยก๊าซเรือกระจก (ข้อมูลที่อนุมัติแล้ว) 
+              <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-bold">Verified Data</span>
+            </p>
           </div>
           <div className="flex gap-2">
             <Link href="/" className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">+ กรอกข้อมูลใหม่</Link>
@@ -131,7 +137,7 @@ export default function DashboardPage() {
               </ResponsiveContainer>
             ) : (
               <div className="h-full flex items-center justify-center text-gray-400 text-center">
-                ต้องมีข้อมูลอย่างน้อย 2 ปี เพื่อทำการเปรียบเทียบ<br/>(เช่น มีข้อมูลปี 2023 และ 2024)
+                ยังไม่มีข้อมูลที่ผ่านการอนุมัติเพียงพอสำหรับการเปรียบเทียบ<br/>(ต้องมีข้อมูลอนุมัติแล้วอย่างน้อย 2 ปี)
               </div>
             )}
           </div>
@@ -139,7 +145,7 @@ export default function DashboardPage() {
 
         {/* ส่วนกราฟแท่งรวม (เพิ่มเส้นเป้าหมาย ReferenceLine) */}
         <div className="mb-8">
-          <h2 className="text-lg font-bold text-gray-800 mb-4">กราฟแท่งเปรียบเทียบปริมาณรายเดือนทั้งหมด</h2>
+          <h2 className="text-lg font-bold text-gray-800 mb-4">กราฟแท่งเปรียบเทียบปริมาณรายเดือน (อนุมัติแล้ว)</h2>
           <div className="w-full h-80 bg-gray-50 p-4 rounded-lg border border-gray-100">
             {reports.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -151,21 +157,20 @@ export default function DashboardPage() {
                   <Legend />
                   <Bar dataKey="ก๊าซเรือกระจก" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                   
-                  {/* ลากเส้นเป้าหมายสีแดงถ้ามีการตั้งเป้าหมายไว้ */}
                   {target > 0 && (
                     <ReferenceLine y={target} stroke="#ef4444" strokeDasharray="5 5" label={{ position: 'right', value: `เป้าหมาย (${target})`, fill: '#ef4444', fontSize: 12 }} />
                   )}
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex items-center justify-center text-gray-400">ยังไม่มีข้อมูลสำหรับแสดงกราฟ</div>
+              <div className="h-full flex items-center justify-center text-gray-400">ยังไม่มีข้อมูลที่อนุมัติแล้วสำหรับแสดงกราฟ</div>
             )}
           </div>
         </div>
 
         {/* ตารางประวัติละเอียด */}
         <div>
-          <h2 className="text-lg font-bold text-gray-800 mb-4">ตารางประวัติการบันทึก</h2>
+          <h2 className="text-lg font-bold text-gray-800 mb-4">ตารางประวัติข้อมูลที่อนุมัติแล้ว</h2>
           <div className="overflow-x-auto shadow-md rounded-lg">
             <table className="w-full text-left border-collapse">
               <thead>
@@ -188,18 +193,12 @@ export default function DashboardPage() {
                       <td className="p-4 border border-gray-300 text-gray-800 font-medium">{r.generalWaste + r.hazardousWaste}</td>
                       <td className="p-4 border border-gray-300 font-bold text-red-600">{r.totalCO2.toFixed(2)}</td>
                       <td className="p-4 border border-gray-300 text-center">
-                        {r.status === 'APPROVED' ? (
-                          <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">อนุมัติแล้ว</span>
-                        ) : r.status === 'REJECTED' ? (
-                          <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold">ตีกลับ</span>
-                        ) : (
-                          <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-bold">รอตรวจสอบ</span>
-                        )}
+                        <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">อนุมัติแล้ว</span>
                       </td>
                     </tr>
                   ))
                 ) : (
-                  <tr><td colSpan={6} className="p-4 text-center text-gray-400">ยังไม่มีข้อมูลในระบบ</td></tr>
+                  <tr><td colSpan={6} className="p-4 text-center text-gray-400">ยังไม่มีข้อมูลที่ผ่านการอนุมัติในระบบ</td></tr>
                 )}
               </tbody>
             </table>

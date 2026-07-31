@@ -2,12 +2,11 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 
-// เปลี่ยนมาใช้ require แทน import เพื่อแก้ปัญหา Error 500
 const bcrypt = require('bcryptjs')
 
 export async function POST(req: Request) {
   try {
-    const { email, password, factoryName } = await req.json()
+    const { email, password, factoryName, logo } = await req.json()
 
     const existingUser = await prisma.user.findUnique({ where: { email } })
     if (existingUser) {
@@ -21,6 +20,7 @@ export async function POST(req: Request) {
         email,
         password: hashedPassword,
         factoryName,
+        logo: logo || null, // เก็บโลโก้ถ้ามี
       },
     })
 

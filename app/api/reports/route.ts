@@ -1,18 +1,32 @@
 // app/api/reports/route.ts
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { getCurrentUserId } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/auth'
 
-// ดึงประวัติของโรงงานที่ Login อยู่
+// ดึงประวัติข้อมูล
 export async function GET() {
   try {
-    const userId = await getCurrentUserId()
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const user = await getCurrentUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const reports = await prisma.report.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' }
-    })
+    let reports;
+    // ถ้าเป็น ADMIN ให้ดึงข้อมูลทุกโรงงาน พร้อมชื่อโรงงานมาแสดงด้วย
+    if (user.role === 'ADMIN') {
+      reports = await prisma.report.findMany({
+        include: {
+          user: {
+            select: { factoryName: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      })
+    } else {
+      // ถ้าเป็น USER ดึงได้แค่ข้อมูลตัวเอง
+      reports = await prisma.report.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: 'desc' }
+      })
+    }
 
     return NextResponse.json(reports)
   } catch (error) {
@@ -20,17 +34,17 @@ export async function GET() {
   }
 }
 
-// บันทึกข้อมูลใหม่ลง Database
+// บันทึกข้อมูลใหม่ (ให้เฉพาะ USER หรือ ADMIN บันทึกของตัวเองได้)
 export async function POST(req: Request) {
   try {
-    const userId = await getCurrentUserId()
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const user = await getCurrentUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const data = await req.json()
 
     const report = await prisma.report.create({
       data: {
-        userId,
+        userId: user.id,
         month: data.month,
         electricity: Number(data.electricity),
         water: Number(data.water),

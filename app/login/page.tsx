@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [factoryName, setFactoryName] = useState("");
+  const [logo, setLogo] = useState<string | null>(null); // <--- เพิ่มตัวแปรเก็บโลโก้
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -20,9 +21,10 @@ export default function LoginPage() {
 
     try {
       const endpoint = isLogin ? "/api/auth/login" : "/api/auth/register";
+      // เพิ่ม logo เข้าไปใน payload ตอนสมัครสมาชิก
       const payload = isLogin 
         ? { email, password } 
-        : { email, password, factoryName };
+        : { email, password, factoryName, logo };
 
       const res = await fetch(endpoint, {
         method: "POST",
@@ -71,17 +73,39 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {!isLogin && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">ชื่อโรงงาน</label>
-              <input
-                type="text"
-                value={factoryName}
-                onChange={(e) => setFactoryName(e.target.value)}
-                required
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-black"
-                placeholder="บริษัท โรงงานตัวอย่าง จำกัด"
-              />
-            </div>
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">ชื่อโรงงาน</label>
+                <input
+                  type="text"
+                  value={factoryName}
+                  onChange={(e) => setFactoryName(e.target.value)}
+                  required
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-black"
+                  placeholder="บริษัท โรงงานตัวอย่าง จำกัด"
+                />
+              </div>
+              
+              {/* ส่วนอัปโหลดโลโก้ */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">โลโก้บริษัท (Logo) - ไม่ใส่ก็ได้</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        setLogo(reader.result as string); // แปลงรูปเป็น Base64
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  className="w-full p-2 border border-gray-300 rounded-lg text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+              </div>
+            </>
           )}
           
           <div>

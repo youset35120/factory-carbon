@@ -4,16 +4,19 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url = env("DATABASE_URL")  //
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id          String   @id @default(uuid())
-  email       String   @unique
-  password    String
-  factoryName String
-  createdAt   DateTime @default(now())
-  reports     Report[]
+  id            String   @id @default(uuid())
+  email         String   @unique
+  password      String
+  factoryName   String
+  logo          String?  @db.Text
+  role          String   @default("USER")
+  monthlyTarget Float?   @default(0) //
+  createdAt     DateTime @default(now())
+  reports       Report[]
 }
 
 model Report {
@@ -30,6 +33,7 @@ model Report {
   rawMaterial    Float
   transport      Float
   totalCO2       Float
+  status         String   @default("PENDING")
   createdAt      DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

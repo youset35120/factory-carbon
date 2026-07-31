@@ -16,10 +16,17 @@ export async function getCurrentUser() {
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, factoryName: true, email: true }
+    select: { 
+      id: true, 
+      factoryName: true, 
+      email: true,
+      logo: true,
+      role: true,
+      monthlyTarget: true // <--- เพิ่มบรรทัดนี้เพื่อดึงค่าเป้าหมายการลดก๊าซ
+    }
   })
   return user
-} // <--- ลืมปิดบรรทัดนี้ไปครับ ตอนนี้เพิ่มให้แล้ว
+}
 
 // ฟังก์ชันสำหรับ Logout (ฝั่ง Client)
 export async function logout(): Promise<void> {
